@@ -1,65 +1,122 @@
-import Image from "next/image";
+"use client";
+
+import { useState } from "react";
+import axios from "axios";
 
 export default function Home() {
+  const [latency, setLatency] = useState<number | null>(null);
+  const [speed, setSpeed] = useState<{ download: number | null; upload: number | null }>({
+    download: null,
+    upload: null,
+  });
+  const [history, setHistory] = useState<number[]>([]);
+  const [loading, setLoading] = useState({ ping: false, speed: false });
+
+  const checkPing = async () => {
+    setLoading((p) => ({ ...p, ping: true }));
+    try {
+      const res = await axios.get("http://localhost:8000/ping");
+      if (res.data.latency !== null) {
+        setLatency(res.data.latency);
+        setHistory((prev) => [...prev.slice(-9), res.data.latency]);
+      }
+    } catch (err) {
+      console.error("Ping failed", err);
+    } finally {
+      setLoading((p) => ({ ...p, ping: false }));
+    }
+  };
+
+  const checkSpeed = async () => {
+    setLoading((p) => ({ ...p, speed: true }));
+    try {
+      const res = await axios.get("http://localhost:8000/speed");
+      setSpeed(res.data);
+    } catch (err) {
+      console.error("Speed test failed", err);
+    } finally {
+      setLoading((p) => ({ ...p, speed: false }));
+    }
+  };
+
+  const avgLatency =
+    history.length > 0
+      ? (history.reduce((a, b) => a + b, 0) / history.length).toFixed(2)
+      : null;
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <main className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white p-4 sm:p-6 md:p-10 space-y-6">
+      <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-center">
+        🌐 Internet Monitor
+      </h1>
+
+      {/* Latency Section */}
+      <section className="text-center space-y-1">
+        <p className="text-base sm:text-lg">
+          Current Latency:{" "}
+          <span className="font-semibold text-blue-400">
+            {latency ?? "--"} ms
+          </span>
+        </p>
+        {avgLatency && (
+          <p className="text-sm sm:text-base text-gray-300">
+            Average Latency (last 10): {avgLatency} ms
           </p>
+        )}
+      </section>
+
+      {/* Speed Section */}
+      <section className="text-center bg-gray-800 rounded-2xl shadow-lg p-4 sm:p-6 w-full max-w-md">
+        <h2 className="text-lg sm:text-xl font-semibold mb-3">⚡ Speed Test</h2>
+        <div className="flex flex-col sm:flex-row justify-between text-sm sm:text-base">
+          <p>📥 Download: {speed.download ?? "--"} Mbps</p>
+          <p>📤 Upload: {speed.upload ?? "--"} Mbps</p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      </section>
+
+      {/* Buttons */}
+      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+        <button
+          onClick={checkPing}
+          disabled={loading.ping}
+          className={`px-5 py-2 rounded-lg text-white font-semibold transition-all ${
+            loading.ping
+              ? "bg-gray-500 cursor-not-allowed"
+              : "bg-blue-600 hover:bg-blue-700"
+          }`}
+        >
+          {loading.ping ? "Checking..." : "Check Ping"}
+        </button>
+
+        <button
+          onClick={checkSpeed}
+          disabled={loading.speed}
+          className={`px-5 py-2 rounded-lg text-white font-semibold transition-all ${
+            loading.speed
+              ? "bg-gray-500 cursor-not-allowed"
+              : "bg-green-600 hover:bg-green-700"
+          }`}
+        >
+          {loading.speed ? "Testing..." : "Check Speed"}
+        </button>
+      </div>
+
+      {/* Latency History */}
+      <section className="w-full max-w-lg mt-6 text-center">
+        <h2 className="text-lg sm:text-xl font-semibold mb-3">
+          📊 Latency History
+        </h2>
+        <div className="flex flex-wrap justify-center gap-2">
+          {history.map((l, i) => (
+            <span
+              key={i}
+              className="bg-blue-500 px-2 py-1 sm:px-3 sm:py-1.5 rounded text-xs sm:text-sm"
+            >
+              {l}ms
+            </span>
+          ))}
         </div>
-      </main>
-    </div>
+      </section>
+    </main>
   );
 }
