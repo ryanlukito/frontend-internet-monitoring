@@ -3,39 +3,60 @@
 import { useState } from "react";
 import axios from "axios";
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+
 export default function Home() {
   const [latency, setLatency] = useState<number | null>(null);
-  const [speed, setSpeed] = useState<{ download: number | null; upload: number | null }>({
-    download: null,
-    upload: null,
-  });
+  const [downloadSpeed, setDownloadSpeed] = useState<number | null>(null);
   const [history, setHistory] = useState<number[]>([]);
   const [loading, setLoading] = useState({ ping: false, speed: false });
 
-  const checkPing = async () => {
-    setLoading((p) => ({ ...p, ping: true }));
-    try {
-      const res = await axios.get("http://localhost:8000/ping");
-      if (res.data.latency !== null) {
-        setLatency(res.data.latency);
-        setHistory((prev) => [...prev.slice(-9), res.data.latency]);
-      }
-    } catch (err) {
-      console.error("Ping failed", err);
-    } finally {
-      setLoading((p) => ({ ...p, ping: false }));
-    }
+  // ✅ Client-side latency measurement
+  const measureLatency = async () => {
+    const url = `${API_BASE_URL}/ping`;
+    const start = performance.now();
+    await fetch(url);
+    const end = performance.now();
+    return Math.round(end - start);
   };
 
-  const checkSpeed = async () => {
-    setLoading((p) => ({ ...p, speed: true }));
+  // ✅ Client-side download speed measurement
+  const measureDownload = async () => {
+    // You can choose a smaller/larger test file if desired
+    const fileUrl = "https://cachefly.cachefly.net/10mb.test?cache=";
+    const startTime = performance.now();
+    const response = await fetch(fileUrl + Math.random());
+    const blob = await response.blob();
+    const endTime = performance.now();
+
+    const duration = (endTime - startTime) / 1000;
+    const bitsLoaded = blob.size * 8;
+    const speedMbps = bitsLoaded / duration / 1024 / 1024;
+    return parseFloat(speedMbps.toFixed(2));
+  };
+
+  const runClientTest = async () => {
+    setLoading({ ping: true, speed: true });
+    setLatency(null);
+    setDownloadSpeed(null);
+
     try {
-      const res = await axios.get("http://localhost:8000/speed");
-      setSpeed(res.data);
+      const latencyResult = await measureLatency();
+      const downloadResult = await measureDownload();
+
+      setLatency(latencyResult);
+      setDownloadSpeed(downloadResult);
+      setHistory((prev) => [...prev.slice(-9), latencyResult]);
+
+      // ✅ Send results to FastAPI backend for logging
+      await axios.post(`${API_BASE_URL}/client_result`, {
+        latency: latencyResult,
+        download: downloadResult,
+      });
     } catch (err) {
-      console.error("Speed test failed", err);
+      console.error("Client-side test failed", err);
     } finally {
-      setLoading((p) => ({ ...p, speed: false }));
+      setLoading({ ping: false, speed: false });
     }
   };
 
@@ -67,37 +88,29 @@ export default function Home() {
 
       {/* Speed Section */}
       <section className="text-center bg-gray-800 rounded-2xl shadow-lg p-4 sm:p-6 w-full max-w-md">
-        <h2 className="text-lg sm:text-xl font-semibold mb-3">⚡ Speed Test</h2>
-        <div className="flex flex-col sm:flex-row justify-between text-sm sm:text-base">
-          <p>📥 Download: {speed.download ?? "--"} Mbps</p>
-          <p>📤 Upload: {speed.upload ?? "--"} Mbps</p>
-        </div>
+        <h2 className="text-lg sm:text-xl font-semibold mb-3">
+          ⚡ Client Speed Test
+        </h2>
+        <p className="text-base sm:text-lg">
+          📥 Download:{" "}
+          <span className="font-semibold text-green-400">
+            {downloadSpeed ?? "--"} Mbps
+          </span>
+        </p>
       </section>
 
-      {/* Buttons */}
+      {/* Button */}
       <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
         <button
-          onClick={checkPing}
-          disabled={loading.ping}
+          onClick={runClientTest}
+          disabled={loading.ping || loading.speed}
           className={`px-5 py-2 rounded-lg text-white font-semibold transition-all ${
-            loading.ping
+            loading.ping || loading.speed
               ? "bg-gray-500 cursor-not-allowed"
               : "bg-blue-600 hover:bg-blue-700"
           }`}
         >
-          {loading.ping ? "Checking..." : "Check Ping"}
-        </button>
-
-        <button
-          onClick={checkSpeed}
-          disabled={loading.speed}
-          className={`px-5 py-2 rounded-lg text-white font-semibold transition-all ${
-            loading.speed
-              ? "bg-gray-500 cursor-not-allowed"
-              : "bg-green-600 hover:bg-green-700"
-          }`}
-        >
-          {loading.speed ? "Testing..." : "Check Speed"}
+          {loading.ping || loading.speed ? "Testing..." : "Run Client Test"}
         </button>
       </div>
 
