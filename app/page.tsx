@@ -9,7 +9,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 export default function Home() {
   const [latency, setLatency] = useState<number | null>(null);
   const [downloadSpeed, setDownloadSpeed] = useState<number | null>(null);
-  const [uploadSpeed, setUploadSpeed] = useState<number | null>(null);
+  // const [uploadSpeed, setUploadSpeed] = useState<number | null>(null);
   const [history, setHistory] = useState<number[]>([]);
   const [loading, setLoading] = useState({ ping: false, speed: false });
 
@@ -17,24 +17,24 @@ export default function Home() {
     setLoading({ ping: true, speed: true });
     setLatency(null);
     setDownloadSpeed(null);
-    setUploadSpeed(null);
+    // setUploadSpeed(null);
 
     try {
       const latencyResult = await measureLatency(API_BASE_URL ?? "http://localhost:8000");
       const downloadResult = await measureDownload();
-      const uploadResult = await measureUpload(API_BASE_URL ?? "http://localhost:8000");
+      // const uploadResult = await measureUpload(API_BASE_URL ?? "http://localhost:8000");
 
       setLatency(latencyResult);
       setDownloadSpeed(downloadResult);
-      setUploadSpeed(uploadResult);
+      // setUploadSpeed(uploadResult);
       setHistory((prev) => [...prev.slice(-9), latencyResult]);
 
       // ✅ Send results to backend
-      await axios.post(`${API_BASE_URL}/client_result`, {
-        latency: latencyResult,
-        download: downloadResult,
-        upload: uploadResult,
-      });
+      // await axios.post(`${API_BASE_URL}/client_result`, {
+      //   latency: latencyResult,
+      //   download: downloadResult,
+      //   upload: uploadResult,
+      // });
     } catch (err) {
       console.error("Client-side test failed", err);
     } finally {

@@ -20,8 +20,8 @@ export const measureDownload = async () => {
 };
 
 export const measureUpload = async (API_BASE_URL: string) => {
-  const chunkSize = 2048 * 2048; // 1 MB
-  const totalChunks = 100; // 10 MB
+  const chunkSize = 1042 * 1042; // 1 MB
+  const totalChunks = 10; // 10 MB
   let uploadedBits = 0;
 
   const startTime = performance.now();
