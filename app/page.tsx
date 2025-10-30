@@ -2,56 +2,38 @@
 
 import { useState } from "react";
 import axios from "axios";
+import { measureLatency, measureDownload, measureUpload } from "./utils/functions";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 export default function Home() {
   const [latency, setLatency] = useState<number | null>(null);
   const [downloadSpeed, setDownloadSpeed] = useState<number | null>(null);
+  const [uploadSpeed, setUploadSpeed] = useState<number | null>(null);
   const [history, setHistory] = useState<number[]>([]);
   const [loading, setLoading] = useState({ ping: false, speed: false });
-
-  // ✅ Client-side latency measurement
-  const measureLatency = async () => {
-    const url = `${API_BASE_URL}/ping`;
-    const start = performance.now();
-    await fetch(url);
-    const end = performance.now();
-    return Math.round(end - start);
-  };
-
-  // ✅ Client-side download speed measurement
-  const measureDownload = async () => {
-    // You can choose a smaller/larger test file if desired
-    const fileUrl = "https://cachefly.cachefly.net/10mb.test?cache=";
-    const startTime = performance.now();
-    const response = await fetch(fileUrl + Math.random());
-    const blob = await response.blob();
-    const endTime = performance.now();
-
-    const duration = (endTime - startTime) / 1000;
-    const bitsLoaded = blob.size * 8;
-    const speedMbps = bitsLoaded / duration / 1024 / 1024;
-    return parseFloat(speedMbps.toFixed(2));
-  };
 
   const runClientTest = async () => {
     setLoading({ ping: true, speed: true });
     setLatency(null);
     setDownloadSpeed(null);
+    setUploadSpeed(null);
 
     try {
-      const latencyResult = await measureLatency();
+      const latencyResult = await measureLatency(API_BASE_URL ?? "http://localhost:8000");
       const downloadResult = await measureDownload();
+      const uploadResult = await measureUpload(API_BASE_URL ?? "http://localhost:8000");
 
       setLatency(latencyResult);
       setDownloadSpeed(downloadResult);
+      setUploadSpeed(uploadResult);
       setHistory((prev) => [...prev.slice(-9), latencyResult]);
 
-      // ✅ Send results to FastAPI backend for logging
+      // ✅ Send results to backend
       await axios.post(`${API_BASE_URL}/client_result`, {
         latency: latencyResult,
         download: downloadResult,
+        upload: uploadResult,
       });
     } catch (err) {
       console.error("Client-side test failed", err);
@@ -87,16 +69,12 @@ export default function Home() {
       </section>
 
       {/* Speed Section */}
-      <section className="text-center bg-gray-800 rounded-2xl shadow-lg p-4 sm:p-6 w-full max-w-md">
+      <section className="text-center bg-gray-800 rounded-2xl shadow-lg p-4 sm:p-6 w-full max-w-md space-y-2">
         <h2 className="text-lg sm:text-xl font-semibold mb-3">
           ⚡ Client Speed Test
         </h2>
-        <p className="text-base sm:text-lg">
-          📥 Download:{" "}
-          <span className="font-semibold text-green-400">
-            {downloadSpeed ?? "--"} Mbps
-          </span>
-        </p>
+        <p>📥&nbsp;&nbsp;&nbsp;Internet Speed: <span className="font-semibold text-green-400">{downloadSpeed ?? "--"} Mbps</span></p>
+        {/* <p>📤 Upload: <span className="font-semibold text-yellow-400">{uploadSpeed ?? "--"} Mbps</span></p> */}
       </section>
 
       {/* Button */}
@@ -113,23 +91,6 @@ export default function Home() {
           {loading.ping || loading.speed ? "Testing..." : "Run Client Test"}
         </button>
       </div>
-
-      {/* Latency History */}
-      <section className="w-full max-w-lg mt-6 text-center">
-        <h2 className="text-lg sm:text-xl font-semibold mb-3">
-          📊 Latency History
-        </h2>
-        <div className="flex flex-wrap justify-center gap-2">
-          {history.map((l, i) => (
-            <span
-              key={i}
-              className="bg-blue-500 px-2 py-1 sm:px-3 sm:py-1.5 rounded text-xs sm:text-sm"
-            >
-              {l}ms
-            </span>
-          ))}
-        </div>
-      </section>
     </main>
   );
 }
