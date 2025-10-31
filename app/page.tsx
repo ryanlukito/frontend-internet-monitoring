@@ -12,6 +12,7 @@ export default function Home() {
   // const [uploadSpeed, setUploadSpeed] = useState<number | null>(null);
   const [history, setHistory] = useState<number[]>([]);
   const [loading, setLoading] = useState({ ping: false, speed: false });
+  const [counter, setCounter] = useState(0);
 
   const runClientTest = async () => {
     setLoading({ ping: true, speed: true });
@@ -28,6 +29,7 @@ export default function Home() {
       setDownloadSpeed(downloadResult);
       // setUploadSpeed(uploadResult);
       setHistory((prev) => [...prev.slice(-9), latencyResult]);
+      setCounter((prev) => prev + 1);
 
       // ✅ Send results to backend
       // await axios.post(`${API_BASE_URL}/client_result`, {
@@ -63,7 +65,7 @@ export default function Home() {
         </p>
         {avgLatency && (
           <p className="text-sm sm:text-base text-gray-300">
-            Average Latency (last 10): {avgLatency} ms
+            Average Latency (Test #{counter}): {avgLatency} ms
           </p>
         )}
       </section>
